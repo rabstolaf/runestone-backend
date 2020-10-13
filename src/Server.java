@@ -26,7 +26,7 @@ import java.security.Security;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public class Server {
-  static final int maxInBuff = 10485760;  
+  static final int maxInBuff = 104857600;  
   static final String interp = "./dispatch.py";  // command interpreter
   static String usage = "Usage:  java Server [-ssl] [tmpdir [port]]";
   static String defaultTmpdir = "/tmp";
@@ -35,7 +35,7 @@ public class Server {
   
   /* verify that addr is an acceptable IP address */
   static boolean addressTest(byte[] addr) {
-    return addr[0] == (byte)130 && addr[1] == 71; // && addr[2] == 32;
+    return addr[0] == (byte)162 && addr[1] == (byte)210; // && addr[2] == 32;
   }
 
   /** print a diagnostic message related to thread */
@@ -131,14 +131,6 @@ public class Server {
 	  }
 	  /* printlnDiagnostic(thread, "Prefix len is " + len + " = \"" + 
 	     new String(inBuff, 0, start) + "\"");*/
-	  int comment_start = start;
-	  while (start < maxInBuff && 
-		 Byte.valueOf(inBuff[start]).intValue() != 0x3c)
-	    start++;
-	  String comment = new String(inBuff, comment_start, 
-				      start - comment_start);
-	  printlnDiagnostic(thread, "Prefix comment is \"" + 
-			    comment + "\" (" +(start-comment_start)+" bytes)");
 	}
 	// len holds int value of prefix, start holds index of first byte after
 	if (count != -1)
@@ -170,6 +162,7 @@ public class Server {
       else
 	arg = command.trim();
       String arr[] = {interp, tmpdir, arg,};
+      /* printlnDiagnostic(thread, "DEBUG: tmpdir = " + tmpdir); */
       Process proc = runTime.exec(arr);
       if (len > 0) {
 	printlnDiagnostic(thread, "Sending command to " + interp + 
@@ -221,12 +214,6 @@ public class Server {
 			+ errCount + " bytes):  ");
       printlnDiagnostic(thread, errResponse);
 
-      if (errCount > 0) {
-	String header = "<cpet-response output-length=\"" + count +
-	  "\" error-length=\"" + errCount + "\" />";
-	printlnDiagnostic(thread, "Header:  " + header);
-	response = header + response + errResponse;
-      }
       // response holds bytes to send to client
       
       //OutputStream outStream = sock.getOutputStream();
