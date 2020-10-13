@@ -24,5 +24,6 @@ done
 # command-line flags parsed
 COMMAND="$*"
 
-echo "$COMMAND" | java TestClient2 -q $FLAGS $HOST $PORT 
+echo "$COMMAND" TestClient2 -q $FLAGS $HOST $PORT 
+echo "$COMMAND" | java TestClient2 $FLAGS $HOST $PORT 
 

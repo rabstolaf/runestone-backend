@@ -27,9 +27,10 @@ SESSION_LIFESPAN = 30*60 # number of seconds before a session times out
 #SESSION_ID_LENGTH = 30 # number of hex digits in a session ID
 
 # os.environ['PSQL'] ="psql  -d cpet -P format=unaligned  -t" # testing...
-os.environ['PGHOST'] = "arachne.cs.stolaf.edu"
+os.environ['PGHOST'] = "anansi.cs.stolaf.edu"
 
-PSQL = "psql  -d cpet -P format=unaligned  -t" # testing...
+#PSQL = "psql  -d cpet -P format=unaligned  -t" # testing...
+PSQL = "psql  -d cpet_orig -P format=unaligned  -t" # testing...
 PROG = "CPET Server"
 receptDir = "receptacles"
 tmpQidPrefix = "qtmp"
@@ -250,6 +251,7 @@ def do_get_question():
                "' and root_url = '" + URL + "'").strip()
 
 def do_get_receptacles():
+    print "DEBUG - entering do_get_receptacles()"
     TYPE=getAttrib('type', typePat, command)
     if TYPE in receptTables:
         print psql("select name from " + TYPE).strip()
