@@ -1,0 +1,67 @@
+#!/usr/bin/python
+# CPET server-side receptacle for Scheme programming language
+# RAB 1/05
+
+import os
+import sys
+import re
+
+from lib import getAttrib
+
+codePat = r'[^"]*'
+# interp = "/usr/local/dept/bin/petite"
+interp = "/usr/local/dept/bin/mzscheme"
+
+command = sys.stdin.read().strip()
+
+decodeTable = {
+    "escape": # regexps-to-chars for escape characters
+    {r"%34": "%"},
+    
+    "nonescape": # regexps-to-chars for non-escape characters
+    { r"%22": r'"', r"%0a": "\n", r"%0A": "\n", r"%27": "'", r"%5c": "\\",
+      }
+    }
+
+def codeDict2reObject(dict):
+    pat = "("
+    first = True
+    for key in dict:
+        if not first:
+            pat += "|"
+        else:
+            first = False
+        pat += key
+    pat += ")"
+    return re.compile(pat)
+
+# Regular expression objects derived from decodeTable dictionary
+escRe = codeDict2reObject(decodeTable["escape"])
+nonescRe = codeDict2reObject(decodeTable["nonescape"])
+
+def nonescDecode(match):
+    return decodeTable["nonescape"][match.group(1)]
+
+def escDecode(match):
+    return decodeTable["escape"][match.group(1)]
+
+CODE = getAttrib('code', codePat, command)
+BEFORE = getAttrib('before', codePat, command, '').replace('+', ' ')
+AFTER = getAttrib('after', codePat, command, '').replace('+', ' ')
+CODE = nonescRe.sub(nonescDecode, BEFORE+CODE+AFTER)
+CODE = escRe.sub(escDecode, CODE)
+
+fi, foe = os.popen4(interp, 't')
+fi.write(CODE + '\n')
+fi.close()
+out = foe.readlines()
+# out.pop(0)
+# out.pop(0)
+out.pop(0)
+out.pop(len(out)-1)
+promptPat = r"^(?:> )+"
+promptRe = re.compile(promptPat)
+for i in xrange(len(out)):
+    out[i] = promptRe.sub("", out[i])
+foe.close()
+sys.stdout.writelines(out)

@@ -1,0 +1,28 @@
+#!/bin/sh
+# submit a single CPET protocol request and print the response
+PROG=`basename $0`
+USAGE="Usage:  $prog [-ssl] [-p[ort] num] [-h[ost] hostname] command 
+Defaults from environment variables CPET_HOST, CPET_PORT"
+
+HOST=$CPET_HOST  PORT=$CPET_PORT  FLAGS=
+while test $# -ge 1
+do case "$1" in 
+   -ssl) FLAGS="$FLAGS $1" ; shift ;;
+   -p*) test $# -ge 2 || { echo "$USAGE" ; exit 1 ; }
+	echo "$2" | grep '[^0-9]' >/dev/null 2>&1 && {
+	    echo bad port number, aborting ; exit 1 ; }
+	PORT=$2 ; shift ; shift ;;
+
+   -h*) test $# -ge 2 || { echo "$USAGE" ; exit 1 ; }
+	echo "$2" | grep '[^a-zA-Z0-9_.]' >/dev/null 2>&1 && {
+	    echo bad host name "$2", aborting ; exit 1 ; }
+	HOST=$2 ; shift ; shift ;;
+
+   *)  break;;
+   esac
+done
+# command-line flags parsed
+COMMAND="$*"
+
+echo "$COMMAND" | java TestClient2 -q $FLAGS $HOST $PORT 
+

@@ -1,0 +1,117 @@
+#!/usr/bin/python
+# CPET server-side receptacle for LAML processing
+# RAB 2/06
+
+import os
+import sys
+import re
+
+from locale import atoi
+
+from lib import getAttrib
+
+numPat = r'[0-9]+'
+alphanumPat = r'\w+'
+pathPat = r'[\w/.-]+'
+
+def getNumAttribMax(attrib, command, defaultlim, maxlim):
+    val = getAttrib(attrib, numPat, command, str(defaultlim))
+    if atoi(val) > maxlim:
+        val = str(maxlim)
+    return val
+
+bindir = '~cs121/.wiki-bin'  # for translation scripts
+
+# "sandbox" limits
+defaultTimeLimit = 30
+maxTimeLimit = 30
+defaultProcLimit = 500
+maxProcLimit = 500
+defaultVMLimit = 262144
+maxVMLimit = 262144
+defaultMemLimit = 65536
+maxMemLimit = 65536
+defaultFileCountLimit = 50
+maxFileCountLimit = 50
+defaultFileSizeLimit = 16384
+maxFileSizeLimit = 16384
+
+interp = "/bin/sh"
+
+# doc of receptacle attributes...  RAB 2/6
+
+#tmpdir="/tmp"
+#infile="inxxx"
+#outfile="/tmp/outxxx"
+#errfile="/tmp/errxxx"
+#time-limit="30"
+#proc-limit="500"
+#vm-limit="262144"
+#mem-limit="65536"
+#file-count-limit="50"
+#file-size-limit="16384"
+
+#translate="sound-list"
+#translate="image-list"
+#infile="..."
+#outfile="..."
+# opt limits
+
+#translate="list-media"
+#infile="..."
+# opt limits
+
+
+command = sys.stdin.read().strip()
+
+TRANS = getAttrib('translate', pathPat, command, False)
+if TRANS:
+    INFILE = getAttrib('infile', pathPat, command)
+    if TRANS != "list-media":
+        OUTFILE = getAttrib('outfile', pathPat, command)
+else:
+    TMPDIR = getAttrib('tmpdir', pathPat, command)
+    INFILE = getAttrib('infile', alphanumPat, command)
+    OUTFILE = getAttrib('outfile', pathPat, command)
+    ERRFILE = getAttrib('errfile', pathPat, command)
+
+TIMEL = getNumAttribMax('time-limit', command, defaultTimeLimit, maxTimeLimit)
+PROCL = getNumAttribMax('proc-limit', command, defaultProcLimit, maxProcLimit)
+VML = getNumAttribMax('vm-limit', command, defaultVMLimit, maxVMLimit)
+MEML = getNumAttribMax('mem-limit', command, defaultMemLimit, maxMemLimit)
+FILECL  = getNumAttribMax('file-count-limit ', command, defaultFileCountLimit,
+                          maxFileCountLimit)
+FILESL = getNumAttribMax('file-size-limit', command, defaultFileSizeLimit,
+                         maxFileSizeLimit)
+
+LIMITS = "ulimit -t " + str(TIMEL) + "; ulimit -u " + str(PROCL) + \
+      "; ulimit -v " + str(VML) + "; ulimit -m " + str(MEML) + \
+      "; ulimit -n " + str(FILECL) + "; ulimit -f " + str(FILESL) + "; "      
+
+if TRANS:
+    if TRANS == "list-media":
+        CMD = LIMITS + bindir + "/convert_list_to_sound_or_image.pl " + \
+              INFILE
+    elif TRANS == "sound-list":
+        CMD = LIMITS + bindir + "/convert_sound_to_list.pl " + \
+              INFILE + " " + OUTFILE
+    elif TRANS == "image-list":
+        CMD = LIMITS + bindir + "/convert_img_to_list.pl " + \
+              INFILE + " " + OUTFILE
+    else:
+        raise ValueError, "\nCPET LAML receptacle:  " + \
+              "Unrecognized translation type '" + TRANS + "'"
+
+else:
+    CMD = "(cd " + TMPDIR + "; " + LIMITS + \
+          "/usr/local/dept/laml/bin/laml_no_ex " + INFILE + " > " + \
+          OUTFILE + ") 2> " + ERRFILE
+
+# sys.stdout.write(CMD + '\n') # DEBUG
+
+fi, foe = os.popen4(interp, 't')
+fi.write(CMD + "; echo $?" + '\n')
+fi.close()
+out = foe.read()
+foe.close()
+sys.stdout.write(out)

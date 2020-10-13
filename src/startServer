@@ -1,0 +1,70 @@
+#!/bin/sh
+# launch CPET server -- RAB 6/05
+PROG=`basename $0`
+USAGE="Usage:  $PROG [-ssl] [-nolog] [-restart] [portnum]"
+
+TMPDIR=tmp.$$
+LOGDIR=logs
+ADMIN=rab
+
+trap "rm -rf ${TMPDIR}*" 0 2 3 14 15
+
+FLAGS= PORT= RESTART=false LOG=true
+while test $# -gt 0 
+  do  
+  case "$1" in 
+      -ssl) FLAGS="$FLAGS $1" ; shift ;;
+      -restart) RESTART=true ; shift ;;
+      -nolog) LOG=false ; shift;;
+      *) test -n "$PORT" && { echo $USAGE ; exit 1 ; }
+         echo "$1" | grep '[^0-9]' > /dev/null && {
+	    echo "invalid port number $1" ; echo "$USAGE" ; exit 1 ; }
+	 # valid-looking port number found
+	 PORT=$1 ; shift ;; 
+  esac
+done
+# PORT holds valid-looking port number if entered;  any flags copied to FLAGS
+
+if $LOG
+then 
+    LOGSUBDIR=$LOGDIR/`hostname`:$PORT/
+    test -d $LOGDIR || mkdir $LOGDIR ; 
+    test -d $LOGSUBDIR || mkdir $LOGSUBDIR ; 
+    test -d $LOGSUBDIR || LOGSUBDIR=./
+    LOGFILE=$LOGSUBDIR`date +%Y%m%d_%H%M%S.$$`
+else
+    LOGFILE=/dev/null
+fi
+
+test -d $TMPDIR || mkdir $TMPDIR
+test -w $TMPDIR || {
+    echo "Couldn't create temp directory $TMPDIR, aborting"
+    exit 1; }
+# tmp directory exists
+
+CONTIN=true
+PREV=
+while $CONTIN
+do  
+  echo $JAVA_HOME/bin/java Server $FLAGS $TMPDIR $PORT 
+  $JAVA_HOME/bin/java Server $FLAGS $TMPDIR $PORT | tee $LOGFILE 
+  CONTIN=$RESTART
+  if $CONTIN 
+  then
+    PREV=`date +%Y%m%d_%H`" $PREV"
+    echo "$PREV" | 
+    awk 'BEGIN { admin = "'"$ADMIN"' < /dev/null " }
+       { if ($1 == $5) {
+            print "Mail -s \"Five CPET restarts during hour",$1,"\"",admin,";"
+	    print "echo Five CPET restarts during hour",$1,", waiting 10 min...;"
+	    print "sleep 600;"
+         }
+         print "Mail -s \"Automatic restart of CPET\"",admin,";"
+       }' |
+    sh
+  fi
+done
+
+
+
+

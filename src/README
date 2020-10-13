@@ -1,0 +1,57 @@
+Server source files:
+
+Server.java
+    Manages network connections with CPET clients
+    Invokes dispatcher to handle protocol requests
+
+dispatch.py
+    Receives all protocol requests
+    Invokes receptacles for protocol requests that need them
+    Carries out other protocol requests directly, e.g., querying database
+
+receptacles/*
+    Receptacles, with executable names same as the receptacle name, 
+        e.g, Scheme (a python script)
+
+receptacles/lib.py
+    Code shared by python receptacles
+
+Makefile
+    For generating executables/object files, e.g., make Server.class
+    Default target ordinarily makes all programs necessary for CPET server
+
+-------------- testing software ------------------------
+
+tests.m4
+    Source for protocol tests, which call dispatcher directly
+    To make and run tests:    
+        make tests.sh
+	make tests
+    make tests compares output against tests.out. To regenerate tests.out:
+        make out
+
+See also testdir/serverCmp
+
+TestClient.java
+    For testing Server.java
+    Repeatedly reads a raw protocol expression, evaluates it, and
+        prints the results
+
+TestClient2.java
+    For testing Server.java
+    Repeatedly reads a raw protocol expression, evaluates it, and
+        prints the results, reusing same socket connection (persistent)
+
+======================================================================
+TO DO:
+
+Merge TestClient and TestClient2 into a single program, with flags 
+  -persistent, -transient to govern choice.
+
+
+NOTES:
+
+Latest attempts to get SSL server to talk to Javascript/Mozilla are stored in 
+Server.java 1.16.1.1, TestClient2.java 1.2.1.1, startServer 1.2.1.1
+which use the same cipher suites as Javascript/Mozilla and produce the same 
+bug...
