@@ -9,3 +9,13 @@ logs
 old
 rab-java
 .publog
+src/testdir
+src/ssldebug
+test.html
+test.pct
+pub
+qtmp.out
+try.input
+try.sh
+src/backends/example1
+src/backends/testing
