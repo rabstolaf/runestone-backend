@@ -1,6 +1,6 @@
 #!/bin/bash
 # prototype backend interpreter for the PDC CPET receptacle
-# RAB 10/2020 (version 1)
+# RAB 10/2020 (version 1) Demo on 10/20/20
 PROG=`basename $0`
 USAGE="Usage:  $PROG
 	jobname [count filename [build-command ...]]
