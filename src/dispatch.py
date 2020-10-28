@@ -1,8 +1,23 @@
 #!/usr/bin/python
-# CPET server-side receptacle dispatcher 
+# dispatch.py - CPET server-side receptacle dispatcher 
 # RAB 1/05
 # TODO:  rewrite the db connection properly, e.g., use psycopg
 # support for length as 2nd arg added 12/06
+# documentation added 10/2020
+
+### The CPET server Server.java creates a process running this python program dispatch.py
+### for each command received from a client.
+### Command received either as second command-line argument for this program dispatch.py
+### or as standard input for this program dispatch.py (integer 2nd arg)
+###     Example commands:
+###         <poll />
+###         <engage-receptacle type="Scheme" code="(+ 3 4)" />
+### This program dispatch.py is responsible for the following:
+###    - parse most or all of that received command
+###    - if that command does not require a receptacle
+###          carry out that command using a handler function, e.g., do_poll()
+###      else
+###          launch receptacle (e.g., Scheme) to carry out command
 
 import os
 import sys
@@ -10,10 +25,12 @@ import re
 import time
 from receptacles.lib import getAttrib
 
+### define key variables shell, tmpdir, command
+
 shell = "/bin/bash"
 
-tmpdir = sys.argv[1]
-arg = sys.argv[2]
+tmpdir = sys.argv[1]               ### dir for temporary files if needed by a receptacle
+arg = sys.argv[2]                  ### second argument, either a command or an integer
 #user = sys.argv[3]
 
 if arg[0] == "<":
@@ -22,6 +39,8 @@ else:
     # arg holds number of bytes to read from standard input
     command = sys.stdin.read(int(arg))
 # command has been retrieved from command-line 
+
+### set some parameters
 
 SESSION_LIFESPAN = 30*60 # number of seconds before a session times out
 #SESSION_ID_LENGTH = 30 # number of hex digits in a session ID
@@ -36,12 +55,16 @@ receptDir = "receptacles"
 tmpQidPrefix = "qtmp"
 receptTables = ('cmss', 'services')
 
+### helper function for printing error messages consistently
+
 # heads of error messages from postgres
 ERROR_PREFIX = 'CPET_SERVER_ERROR:  '
 duplicate_key_error = ERROR_PREFIX + ":  Cannot insert a duplicate key"
 
 def printError(msg):
     print >> sys.stderr, ERROR_PREFIX + msg
+
+### regular-expression patterns for identifying and parsing various kinds of values
 
 urlPat = r"[/:.a-zA-Z0-9_-]*"
 qidPat = "(?:" + tmpQidPrefix + ")?" + r"[0-9]*" 
@@ -53,6 +76,8 @@ alphanumPat = r"\w*"
 alphanumdashPat = r"[\w\-]*"
 annotValuePat = r"[\w%@*/+.-]*"
 keywordsPat = r"[\w&@]*"
+
+### helper functions used by command handlers
 
 # create a unique session id
 # input - string to use as part of the data used to create the session key.
@@ -80,11 +105,17 @@ def sessionMaint():
     psql("delete from session where expiration < '" + str(int(time.time())) +
          "'")
 
+### handler functions, one per protocol keyword (e.g., poll or engage-receptacle)
+
+### handler for engage-receptacle protocol keyword
 def do_engage_receptacle():
-    TYPE=getAttrib('type', typePat, command)
+    TYPE=getAttrib('type', typePat, command)  ### type attribute provides receptacle name
     receptCmd = receptDir + "/" + TYPE
 
-    if os.access(receptCmd, os.X_OK):
+    if os.access(receptCmd, os.X_OK):         ### if that receptacle is an executable file
+        ### split into two processes
+        ###     one ("parent") starts executing the receptacle program in a shell
+        ###     the other ("child") continues dispatch.py, to relay results to server
         pipe = os.pipe()
         if os.fork() != 0:
             # parent process
@@ -571,13 +602,16 @@ def do_annotate():
 ### main algorithm ###
 
 try:
-    regexp = re.compile(r"^<([a-zA-Z0-9_-]+).*>$")
+    regexp = re.compile(r"^<([a-zA-Z0-9_-]+).*>$")      ### verify/parse format of command
     match = regexp.match(command)
     if match == None or match.group(1) == None:
         raise ValueError, "\nMissing/illegal element name or missing >: "
     tag = match.group(1)
-    # tag is the XML-style element tag for the protocol element
+    # tag is the XML-style element tag for the protocol keyword
+    ### Example:  tag might hold "poll" or "engage-receptacle")
+    ### Note to Runestone team:  this regexp checks that > is final character...
 
+    ### call the appropriate handler to complete the work of this program
     if tag == "engage-receptacle":
         do_engage_receptacle()
     elif tag == "get-question":
@@ -606,9 +640,7 @@ try:
     else:
         raise ValueError, "\nUnrecognized protocol request type '" + tag + "'"
     
+### handle unrecognized protocol keyword here
 except ValueError, v:
     printError("Error in protocol query:  " + v.args[0])
     sys.exit(1)
-
-    
-
