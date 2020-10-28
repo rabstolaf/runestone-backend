@@ -115,7 +115,7 @@ def do_engage_receptacle():
     if os.access(receptCmd, os.X_OK):         ### if that receptacle is an executable file
         ### split into two processes
         ###     one ("parent") starts executing the receptacle program in a shell
-        ###     the other ("child") continues dispatch.py, to relay results to server
+        ###     the other ("child") sends command to receptacle then exits
         pipe = os.pipe()
         if os.fork() != 0:
             # parent process
