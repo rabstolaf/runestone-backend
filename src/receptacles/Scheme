@@ -1,6 +1,12 @@
 #!/usr/bin/python
 # CPET server-side receptacle for Scheme programming language
-# RAB 1/05
+# RAB 1/05, documentation added 10/20
+
+### executed by dispatch.py in its handler function do_engage_receptacle()
+### receives command from dispatch.py
+###     example command:  <engage-receptacle type="Scheme" code="(+ 5 3)" />
+### then completes parsing of command to obtain code, sends code to Scheme interpreter,
+### removes Scheme prompts from interp output, and sends the result to client via stdout
 
 import os
 import sys
@@ -8,11 +14,24 @@ import re
 
 from lib import getAttrib
 
-codePat = r'[^"]*'
+### define key regular expression pattern(s) and variable interp, the Scheme interpreter
+codePat = r'[^"]*'		### regexp pattern for code attribute value
 # interp = "/usr/local/dept/bin/petite"
 interp = "/usr/local/dept/bin/mzscheme"
 
+### receive command from dispatch.py
+
 command = sys.stdin.read().strip()
+
+### CPET client can encode the code attribute value in order to embed newlines,
+### double quotes, etc., according to this dictionary decodeTable
+### For example, <engage-receptacle type="Scheme" code="(define str %22hi%22)%0a(string-append x %22!%22)" />
+### produces a two-line code value of
+###       (define str "hi")
+###       (string-append str "!")
+### which sends the following result to the client
+###       "hi!"
+### decodeTable is applied using regular expression operations
 
 decodeTable = {
     "escape": # regexps-to-chars for escape characters
@@ -45,23 +64,31 @@ def nonescDecode(match):
 def escDecode(match):
     return decodeTable["escape"][match.group(1)]
 
+### parse remaining recognized attributes for this receptacle, and decode 
+###    attributes before, after can be used to prepend libraries, append cleanup code, etc
+
 CODE = getAttrib('code', codePat, command)
-BEFORE = getAttrib('before', codePat, command, '').replace('+', ' ')
+BEFORE = getAttrib('before', codePat, command, '').replace('+', ' ') 
 AFTER = getAttrib('after', codePat, command, '').replace('+', ' ')
 CODE = nonescRe.sub(nonescDecode, BEFORE+CODE+AFTER)
 CODE = escRe.sub(escDecode, CODE)
 
+### create a process running interp for this command
+### file objects fi, foe provide access the standard input, standard output of interp
+### NOTE: popen4 is now deprecated (10/2020) - reimplement with subprocess module
+###    https://docs.python.org/2/library/os.html#file-object-creation
+
 fi, foe = os.popen4(interp, 't')
-fi.write(CODE + '\n')
+fi.write(CODE + '\n')	### send decoded code to interp
 fi.close()
 out = foe.readlines()
 # out.pop(0)
 # out.pop(0)
-out.pop(0)
-out.pop(len(out)-1)
+out.pop(0)		### remove initial line of interp output, e.g., "Welcome to..."
+out.pop(len(out)-1)     ### remove final empty line of output
 promptPat = r"^(?:> )+"
-promptRe = re.compile(promptPat)
-for i in xrange(len(out)):
+promptRe = re.compile(promptPat)   
+for i in xrange(len(out)):	### delete this interp's Scheme prompts
     out[i] = promptRe.sub("", out[i])
 foe.close()
-sys.stdout.writelines(out)
+sys.stdout.writelines(out)	### send results to client
