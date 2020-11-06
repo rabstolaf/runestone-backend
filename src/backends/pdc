@@ -61,18 +61,49 @@ then
 	CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
 	CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
 	CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
-	kubectl scale --replicas=$CURRENT_PLUS rc openmp
-	kubectl wait --for=condition=ready pod -l name=openmp,inuse=nah --timeout=30s
+	kubectl scale --replicas=$CURRENT_PLUS rc openmp || {
+		echo "failed to increment the replica count of replication controller named openmp, attempting to execute locally"
+		exec $EXEC > ../$JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
+	kubectl wait --for=condition=ready pod -l name=openmp,inuse=nah --timeout=30s || {
+		echo "pod failed to be ready; attempting to execute locally"
+		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+		CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+		kubectl scale --replicas=$CURRENT_MINUS rc openmp
+		exec $EXEC > ../$JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
 	PODNAME=$(kubectl  get pod -l name=openmp,inuse=nah -o name)
 	POD=$(echo $PODNAME  | head -n1 | cut -d " " -f1)
 	POD="${POD:4}"
 	kubectl label pod $POD inuse=yah --overwrite
 	cd ..
-    kubectl cp $JOBNAME $POD:/ 
-    kubectl exec -i $POD -- bash -c "exec /$JOBNAME/$EXEC" > output.txt || {
-    	# if we reach this line, then exec failed
-    	echo "$PROG: execution attempt failed:  $EXEC"
+    kubectl cp $JOBNAME $POD:/ || {
+		echo "copying into pod failed; attempting to execute locally"
+		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+		CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+		kubectl scale --replicas=$CURRENT_MINUS rc openmp
+		exec $EXEC > $JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
     	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
+    kubectl exec -i $POD -- bash -c "exec /$JOBNAME/$EXEC" > $JOBNAME.out || {
+    	echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME within pod $POD:"
     	kubectl exec -i $POD -- bash -c " ls -l /$JOBNAME"
 		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
 		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
