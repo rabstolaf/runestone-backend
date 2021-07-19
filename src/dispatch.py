@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # dispatch.py - CPET server-side receptacle dispatcher 
 # RAB 1/05
 # TODO:  rewrite the db connection properly, e.g., use psycopg

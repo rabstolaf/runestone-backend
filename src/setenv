@@ -1,0 +1,3 @@
+#! environment variables for cpet
+export CPET_HOST=virtual20.cs.stolaf.edu
+export CPET_PORT=35600
