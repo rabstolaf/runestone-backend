@@ -1,10 +1,5 @@
-# cpet
+# Runestone Backend
 
-Co Process Extension Tool
-https://www.cs.stolaf.edu/projects/cpet/
-
-Environment variables:
-* setenv JAVA_HOME /usr/local/dept/apps/jdk
-* setenv CLASSPATH  $JAVA_HOME/jre/lib/ext/bcprov-jdk15-133.jar:${CLASSPATH}
-* setenv CPET_HOST rns203-9.cs.stolaf.edu (example)
-* setenv CPET_PORT 39010 (example)
+Create a PDC backend for Runestone.  
+Started Fall '20 with Runestone Capstone team in stogit:cap/f20b/runestone/cpet
+Continued in Summer '21 by CURI researchers in stogit:rab-devel/csinparallel/runestone-backend
