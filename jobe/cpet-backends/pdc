@@ -1,0 +1,120 @@
+#!/bin/bash
+# prototype backend interpreter for the PDC CPET receptacle
+# RAB 10/2020 (version 1) Demo on 10/20/20
+PROG=`basename $0`
+USAGE="Usage:  $PROG
+	jobname [count filename [build-command ...]]
+	[exec-command...]
+	[code]
+where the characters beginning with jobname represent standard input.
+    jobname  names the job being acted on
+    count, filename  are length of code and filename to store  code  into
+	If count is 0 or empty then ignore (dummy) filename and assume no code 
+    build-command  is a shell command to compile or otherwise prepare filename
+    exec-command  is shell command for executing the job (blank line = no exec)
+    code  is the contents for filename, consisting of count bytes"
+
+read JOBNAME COUNT FILENAME BUILD
+test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
+read EXEC
+
+test -d $JOBNAME || mkdir -p $JOBNAME || {
+    echo "$PROG: could not create subdirectory $JOBNAME, aborting"
+    exit 1
+}
+cd $JOBNAME || { 
+    echo "$PROG: could not change to subdirectory $JOBNAME, aborting"
+    exit 1
+}
+
+
+case "$COUNT" in 
+    ""|0) ;;
+    [1-9]*) echo "$COUNT" | grep -q '^[0-9]*$' || {
+	        echo "$PROG $JOBNAME: count must be an unsigned integer"
+		echo "$USAGE" 
+		exit 1; }
+	    test -z "$FILENAME" && {
+		echo "$PROG $JOBNAME: missing filename"
+		echo "$USAGE" 
+		exit 1; }
+	    dd bs=1 count=$COUNT of="$FILENAME" || {
+		echo "$PROG $JOBNAME: couldn't read $COUNT bytes of $FILENAME"
+		echo "$USAGE" 
+		exit 1; } ;;
+    *) echo "count='$COUNT' filename='$FILENAME'" ; echo "$USAGE" ; exit 1;;
+esac
+# any code is consumed from stdin and stored in filename
+
+if test -n "$BUILD"
+then 
+    eval $BUILD || {
+	echo "$PROG: attempt to build failed: $BUILD"
+	echo "Contents of subdirectory $JOBNAME:"
+	ls -l
+	exit 1
+    }
+fi
+
+if test -n "$EXEC"
+then
+	CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+	CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+	CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+	kubectl scale --replicas=$CURRENT_PLUS rc openmp || {
+		echo "failed to increment the replica count of replication controller named openmp, attempting to execute locally"
+		exec $EXEC > ../$JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
+	kubectl wait --for=condition=ready pod -l name=openmp,inuse=nah --timeout=30s || {
+		echo "pod failed to be ready; attempting to execute locally"
+		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+		CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+		kubectl scale --replicas=$CURRENT_MINUS rc openmp
+		exec $EXEC > ../$JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
+	PODNAME=$(kubectl  get pod -l name=openmp,inuse=nah -o name)
+	POD=$(echo $PODNAME  | head -n1 | cut -d " " -f1)
+	POD="${POD:4}"
+	kubectl label pod $POD inuse=yah --overwrite
+	cd ..
+    kubectl cp $JOBNAME $POD:/ || {
+		echo "copying into pod failed; attempting to execute locally"
+		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+		CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+		kubectl scale --replicas=$CURRENT_MINUS rc openmp
+		exec $EXEC > $JOBNAME.out
+		# if we reach this line, then exec failed
+		echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME:"
+    	ls -l
+    	exit 1
+	}
+    kubectl exec -i $POD -- bash -c "exec /$JOBNAME/$EXEC" > $JOBNAME.out || {
+    	echo "$PROG: execution attempt failed:  $EXEC"
+    	echo "Contents of subdirectory $JOBNAME within pod $POD:"
+    	kubectl exec -i $POD -- bash -c " ls -l /$JOBNAME"
+		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+		CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+		kubectl scale --replicas=$CURRENT_MINUS rc openmp
+    	exit 1
+	}
+	CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
+	CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
+	CURRENT_MINUS=$(($CURRENT_REPLICAS-1))
+	kubectl scale --replicas=$CURRENT_MINUS rc openmp
+fi
+
+exit 0
