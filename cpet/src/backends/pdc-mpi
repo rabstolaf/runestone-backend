@@ -14,7 +14,7 @@ where the characters beginning with jobname represent standard input.
     exec-command  is shell command for executing the job (blank line = no exec)
     code  is the contents for filename, consisting of count bytes"
 
-read JOBNAME COUNT FILENAME BUILD
+read JOBNAME NUMBEROFWORKER SLOTSPERWORKER COUNT FILENAME BUILD
 test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
 read EXEC
 
@@ -68,11 +68,13 @@ file="$JOBNAME-job.yaml"
 find_and_replace_in_file "{{ jobname }}" "$JOBNAME" $file
 find_and_replace_in_file "{{ build }}" "$BUILD" $file
 find_and_replace_in_file "{{ exec }}" "$EXEC" $file
+find_and_replace_in_file "{{ numberOfWorker }}" "$NUMBEROFWORKER" $file
+find_and_replace_in_file "{{ slotsPerWorker }}" "$SLOTSPERWORKER" $file
 #pwd
 kubectl apply -f "$JOBNAME-job.yaml"
 
 
-PODNAME=$(kubectl get pods -l mpi_job_name=jobname,mpi_role_type=launcher -o name)
+PODNAME=$(kubectl get pods -l mpi_job_name="$JOBNAME",mpi_role_type=launcher -o name)
 
 echo $PODNAME
 #kubectl wait --for=condition=status mpijob.kubeflow.org/jobname --timeout=10s || {
@@ -108,7 +110,7 @@ done
 count=$(($count+$count/2))
 echo "It took approximately $count seconds to complete the job"
 #kubectl logs -f ${PODNAME} 1> ~/runestone-backend/cpet/src/backends/$JOBNAME.out
-kubectl delete  mpijob.kubeflow.org/jobname
+kubectl delete  mpijob.kubeflow.org/"$JOBNAME"
 rm -rf ~/pv-test/$JOBNAME
 
 # any code is consumed from stdin and stored in filename
