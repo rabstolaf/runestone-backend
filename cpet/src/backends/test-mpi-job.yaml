@@ -1,10 +1,10 @@
 apiVersion: kubeflow.org/v1alpha2
 kind: MPIJob
 metadata:
-  name: jobname
+  name: {{ jobname }}
 #  namespace: test-mpi
 spec:
-  slotsPerWorker: 4
+  slotsPerWorker: {{ slotsPerWorker }}
   cleanPodPolicy: Running
   mpiReplicaSpecs:
     Launcher:
@@ -22,7 +22,7 @@ spec:
           - image: docker.cs.stolaf.edu:443/c-kubed/mpi:demo
             name: mpi-test-master
             command: [ "/bin/sh" ]
-            args: ["-c", "cd /work; {{ build }}; {{ exec }}"]
+            args: ["-c", "cd /work/{{ jobname }}; {{ build }} && {{ exec }}"]
             imagePullPolicy: IfNotPresent
             volumeMounts:
               - mountPath: /work
@@ -30,7 +30,7 @@ spec:
 #          imagePullSecrets:
 #          - name: regcred
     Worker:
-      replicas: 4
+      replicas: {{ numberOfWorker }}
       template:
         spec:
           volumes:
