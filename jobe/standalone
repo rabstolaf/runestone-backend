@@ -1,0 +1,69 @@
+#!/bin/bash
+# prototype backend interpreter for the PDC CPET receptacle
+# RAB 10/2020 (version 1) Demo on 10/20/20
+PROG=`basename $0`
+USAGE="Usage:  $PROG
+	jobname [count filename [build-command ...]]
+	[exec-command...]
+	[code]
+where the characters beginning with jobname represent standard input.
+    jobname  names the job being acted on
+    count, filename  are length of code and filename to store  code  into
+	If count is 0 or empty then ignore (dummy) filename and assume no code 
+    build-command  is a shell command to compile or otherwise prepare filename
+    exec-command  is shell command for executing the job (blank line = no exec)
+    code  is the contents for filename, consisting of count bytes"
+
+read JOBNAME COUNT FILENAME BUILD
+test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
+read EXEC
+
+test -d $JOBNAME || mkdir -p $JOBNAME || {
+    echo "$PROG: could not create subdirectory $JOBNAME, aborting"
+    exit 1
+}
+cd $JOBNAME || { 
+    echo "$PROG: could not change to subdirectory $JOBNAME, aborting"
+    exit 1
+}
+
+
+case "$COUNT" in 
+    ""|0) ;;
+    [1-9]*) echo "$COUNT" | grep -q '^[0-9]*$' || {
+	        echo "$PROG $JOBNAME: count must be an unsigned integer"
+		echo "$USAGE" 
+		exit 1; }
+	    test -z "$FILENAME" && {
+		echo "$PROG $JOBNAME: missing filename"
+		echo "$USAGE" 
+		exit 1; }
+	    dd bs=1 count=$COUNT of="$FILENAME" || {
+		echo "$PROG $JOBNAME: couldn't read $COUNT bytes of $FILENAME"
+		echo "$USAGE" 
+		exit 1; } ;;
+    *) echo "count='$COUNT' filename='$FILENAME'" ; echo "$USAGE" ; exit 1;;
+esac
+# any code is consumed from stdin and stored in filename
+
+if test -n "$BUILD"
+then 
+    eval $BUILD || {
+	echo "$PROG: attempt to build failed: $BUILD"
+	echo "Contents of subdirectory $JOBNAME:"
+	ls -l
+	exit 1
+    }
+fi
+
+if test -n "$EXEC"
+then 
+    exec $EXEC
+    # if we reach this line, then exec failed
+    echo "$PROG: execution attempt failed:  $EXEC"
+    echo "Contents of subdirectory $JOBNAME:"
+    ls -l
+    exit 1
+fi
+
+exit 0
