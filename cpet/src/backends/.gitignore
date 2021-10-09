@@ -1,2 +1,5 @@
 mpi_spmd
 example1
+*.out
+*.save
+*.save.1
