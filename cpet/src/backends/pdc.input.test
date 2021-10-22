@@ -1,3 +1,4 @@
+omp
 example1 1108 trap-omp.c gcc -o trap-omp trap-omp.c -lm -fopenmp
 ./trap-omp 100
 #include <math.h>
