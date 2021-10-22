@@ -1,0 +1,52 @@
+apiVersion: kubeflow.org/v1alpha2
+kind: MPIJob
+metadata:
+  name: {{ jobname }}
+#  namespace: test-mpi
+spec:
+  slotsPerWorker: {{ slotsPerWorker }}
+  cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          securityContext:
+            runAsUser: 1014
+            runAsGroup: 1014
+          volumes:
+          - name: my-local-pv
+            persistentVolumeClaim:
+              claimName: local-pv-claim 
+          containers:
+          - image: docker.cs.stolaf.edu:443/c-kubed/mpi:demo
+            name: mpi-test-master
+            command: [ "/bin/sh" ]
+            args: ["-c", "cd /work/{{ jobname }}; {{ build }} && {{ exec }}"]
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /work
+                name: my-local-pv
+#          imagePullSecrets:
+#          - name: regcred
+    Worker:
+      replicas: {{ numberOfWorker }}
+      template:
+        spec:
+          volumes:
+          - name: my-local-pv
+            persistentVolumeClaim:
+              claimName: local-pv-claim
+          containers:
+          - image: docker.cs.stolaf.edu:443/c-kubed/mpi:demo
+            name: mpi-test-worker
+            imagePullPolicy: IfNotPresent
+            resources:
+              limits:
+                cpu: 2
+            volumeMounts:
+              - mountPath: /work
+                name: my-local-pv
+#  slotsPerWorker: 32
+#          imagePullSecrets:
+#          - name: regcred

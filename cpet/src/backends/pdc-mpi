@@ -1,0 +1,118 @@
+#!/bin/bash
+# prototype backend interpreter for the PDC CPET receptacle
+# RAB 10/2020 (version 1) Demo on 10/20/20
+PROG=`basename $0`
+USAGE="Usage:  $PROG
+	jobname [count filename [build-command ...]]
+	[exec-command...]
+	[code]
+where the characters beginning with jobname represent standard input.
+    jobname  names the job being acted on
+    count, filename  are length of code and filename to store  code  into
+	If count is 0 or empty then ignore (dummy) filename and assume no code 
+    build-command  is a shell command to compile or otherwise prepare filename
+    exec-command  is shell command for executing the job (blank line = no exec)
+    code  is the contents for filename, consisting of count bytes"
+
+read JOBNAME NUMBEROFWORKER SLOTSPERWORKER COUNT FILENAME BUILD
+test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
+read EXEC
+
+test -d ~/pv-test/$JOBNAME || mkdir -p ~/pv-test/$JOBNAME || {
+    echo "$PROG: could not create subdirectory $JOBNAME, aborting"
+    exit 1
+}
+
+#cp test-mpi-job.yaml ~/pv-test/$JOBNAME/$JOBNAME-job.yaml
+ls ~/pv-test/$JOBENAME/
+
+cd ~/pv-test/$JOBNAME || { 
+    echo "$PROG: could not change to subdirectory $JOBNAME, aborting"
+    exit 1
+}
+
+
+cp ~/runestone-backend/cpet/src/backends/test-mpi-job.yaml ~/pv-test/"$JOBNAME"/"$JOBNAME-job.yaml"
+#ls ~/pv-test/$JOBENAME/
+
+
+case "$COUNT" in 
+    ""|0) ;;
+    [1-9]*) echo "$COUNT" | grep -q '^[0-9]*$' || {
+	        echo "$PROG $JOBNAME: count must be an unsigned integer"
+		echo "$USAGE" 
+		exit 1; }
+	    test -z "$FILENAME" && {
+		echo "$PROG $JOBNAME: missing filename"
+		echo "$USAGE" 
+		exit 1; }
+	    dd bs=1 count=$COUNT of="$FILENAME" || {
+		echo "$PROG $JOBNAME: couldn't read $COUNT bytes of $FILENAME"
+		echo "$USAGE" 
+		exit 1; } ;;
+    *) echo "count='$COUNT' filename='$FILENAME'" ; echo "$USAGE" ; exit 1;;
+esac
+
+function find_and_replace_in_file(){
+ #find_and_replace_in_file <original_word> <new_word> <file_name>
+  # sed -i -e 's/'"$1"'/'"$2"'/g' $3
+  file_name=$3
+  # escape backslash
+  original_word=$(echo "$1" | sed 's/\//\\\//g')
+  new_word=$(echo "$2" | sed 's/\//\\\//g')
+  sed -i 's/'"$original_word"'/'"$new_word"'/g' $file_name
+}
+
+file="$JOBNAME-job.yaml"
+#echo $file
+find_and_replace_in_file "{{ jobname }}" "$JOBNAME" $file
+find_and_replace_in_file "{{ build }}" "$BUILD" $file
+find_and_replace_in_file "{{ exec }}" "$EXEC" $file
+find_and_replace_in_file "{{ numberOfWorker }}" "$NUMBEROFWORKER" $file
+find_and_replace_in_file "{{ slotsPerWorker }}" "$SLOTSPERWORKER" $file
+#pwd
+kubectl apply -f "$JOBNAME-job.yaml"
+
+
+PODNAME=$(kubectl get pods -l mpi_job_name="$JOBNAME",mpi_role_type=launcher -o name)
+
+echo $PODNAME
+#kubectl wait --for=condition=status mpijob.kubeflow.org/jobname --timeout=10s || {
+#	echo "Pod stuck"
+#	kubectl delete mpijob.kubeflow.org/jobname
+#	exit 1
+#}
+#timeout="$()"
+
+#touch ~/runestone/cpet/src/backends/$JOBNAME.out
+
+#podToFound=$(kubectl get pods | grep jobname-launcher)
+#found='Completed' 
+let count=0
+while [ $count -le 60 ]
+do
+	sleep 1
+	kubectl logs -f ${PODNAME} 1> ~/runestone-backend/cpet/src/backends/$JOBNAME.out 2> /dev/null
+	if [ -s ~/runestone-backend/cpet/src/backends/$JOBNAME.out ];
+	then
+#		let count++
+#		echo $count
+#		continue
+		break
+	else 
+                let count++
+#                echo $count
+#		echo "It took approximately $count seconds to complete the job"
+                continue
+	#	break
+	fi
+done
+count=$(($count+$count/2))
+echo "It took approximately $count seconds to complete the job"
+#kubectl logs -f ${PODNAME} 1> ~/runestone-backend/cpet/src/backends/$JOBNAME.out
+kubectl delete  mpijob.kubeflow.org/"$JOBNAME"
+rm -rf ~/pv-test/$JOBNAME
+
+# any code is consumed from stdin and stored in filename
+
+exit 0

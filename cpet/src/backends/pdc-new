@@ -70,7 +70,7 @@ then
     	ls -l
     	exit 1
 	}
-	kubectl wait --for=condition=ready pod -l name=openmp,inuse=nah --timeout=30s || {
+	kubectl wait --for=condition=ready pod -l app=stest,inuse=nah --timeout=30s || {
 		echo "pod failed to be ready; attempting to execute locally"
 		CURRENT_REPLICAS=$(kubectl get rc openmp -n default -o=jsonpath='{.status.replicas}')
 		CURRENT_PLUS=$(($CURRENT_REPLICAS+1))
@@ -83,7 +83,7 @@ then
     	ls -l
     	exit 1
 	}
-	PODNAME=$(kubectl  get pod -l name=openmp,inuse=nah -o name)
+	PODNAME=$(kubectl  get pod -l app=stest,inuse=nah -o name)
 	POD=$(echo $PODNAME  | head -n1 | cut -d " " -f1)
 	POD="${POD:4}"
 	kubectl label pod $POD inuse=yah --overwrite
