@@ -1,3 +1,4 @@
+mpi
 mpi-spmd 4 4 959 spmd.c mpicc -Wall spmd.c -o spmd
 mpirun -map-by node -np 8 ./spmd
 /* spmd.c
