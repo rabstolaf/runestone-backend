@@ -14,6 +14,12 @@ where the characters beginning with jobname represent standard input.
     exec-command  is shell command for executing the job (blank line = no exec)
     code  is the contents for filename, consisting of count bytes"
 
+read BACKEND ; test "$BACKEND" = sta || {
+    echo "$PROG: first line is '$BACKEND'"
+    echo "   'sta' expected.  Aborting"
+    exit 1
+}
+
 read JOBNAME COUNT FILENAME BUILD
 test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
 read EXEC
