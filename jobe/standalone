@@ -3,10 +3,12 @@
 # RAB 10/2020 (version 1) Demo on 10/20/20
 PROG=`basename $0`
 USAGE="Usage:  $PROG
-	jobname [count filename [build-command ...]]
+	sta
+    jobname [count filename [build-command ...]]
 	[exec-command...]
 	[code]
-where the characters beginning with jobname represent standard input.
+where the characters beginning with sta represent standard input.
+    sta  is a literal 3-letter code specifying that $PROG should be used
     jobname  names the job being acted on
     count, filename  are length of code and filename to store  code  into
 	If count is 0 or empty then ignore (dummy) filename and assume no code 
