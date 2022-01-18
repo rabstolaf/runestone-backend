@@ -18,11 +18,11 @@ read JOBNAME COUNT FILENAME BUILD
 test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
 read EXEC
 
-test -d $JOBNAME || mkdir -p $JOBNAME || {
+test -d $JOBNAME || mkdir -p ~/request/$JOBNAME || {
     echo "$PROG: could not create subdirectory $JOBNAME, aborting"
     exit 1
 }
-cd $JOBNAME || { 
+cd ~/request/$JOBNAME || { 
     echo "$PROG: could not change to subdirectory $JOBNAME, aborting"
     exit 1
 }
@@ -55,6 +55,8 @@ then
 	exit 1
     }
 fi
+
+gcloud compute scp --zone=us-central1-a "$FILENAME" huynh6@gke-runestone-default-pool-cf35750f-7bx0:~/runestone-storage/.
 
 if test -n "$EXEC"
 then
