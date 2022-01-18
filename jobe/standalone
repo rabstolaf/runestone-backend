@@ -3,16 +3,24 @@
 # RAB 10/2020 (version 1) Demo on 10/20/20
 PROG=`basename $0`
 USAGE="Usage:  $PROG
-	jobname [count filename [build-command ...]]
+	sta
+    jobname [count filename [build-command ...]]
 	[exec-command...]
 	[code]
-where the characters beginning with jobname represent standard input.
+where the characters beginning with sta represent standard input.
+    sta  is a literal 3-letter code specifying that $PROG should be used
     jobname  names the job being acted on
     count, filename  are length of code and filename to store  code  into
 	If count is 0 or empty then ignore (dummy) filename and assume no code 
     build-command  is a shell command to compile or otherwise prepare filename
     exec-command  is shell command for executing the job (blank line = no exec)
     code  is the contents for filename, consisting of count bytes"
+
+read BACKEND ; test "$BACKEND" = sta || {
+    echo "$PROG: first line is '$BACKEND'"
+    echo "   'sta' expected.  Aborting"
+    exit 1
+}
 
 read JOBNAME COUNT FILENAME BUILD
 test -z "$JOBNAME" && { echo "$USAGE" ; exit 1 ; }
